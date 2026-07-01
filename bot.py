@@ -14,7 +14,7 @@ async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != CHANNEL_ID:
         return
 
-    msg = update.channel_post
+    msg = update.effective_message
 
     if msg.audio or msg.document:
 
@@ -139,10 +139,10 @@ app.add_handler(
 # آهنگ های کانال
 app.add_handler(
     MessageHandler(
-        filters.UpdateType.CHANNEL_POST,
+        filters.ALL,
         channel_music
     )
-)
+        )
 
 
 
