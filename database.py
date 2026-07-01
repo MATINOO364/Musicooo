@@ -9,24 +9,33 @@ users = db.table("users")
 
 
 
-def add_song(song):
+def add_song(data):
 
-    songs.insert(song)
+    songs.insert(data)
 
 
 
-def get_songs():
+def all_songs():
 
     return songs.all()
 
 
 
-def find_song(song_id):
+def get_next_id():
 
-    Song = Query()
+    if not songs.all():
+        return 1
+
+    return len(songs.all()) + 1
+
+
+
+def find_song(code):
+
+    Q = Query()
 
     result = songs.search(
-        Song.id == song_id
+        Q.code == int(code)
     )
 
     if result:
@@ -36,28 +45,38 @@ def find_song(song_id):
 
 
 
-def add_user(user_id):
+def search_name(name):
 
-    User = Query()
+    Q = Query()
 
-    exists = users.search(
-        User.id == user_id
+    result = songs.search(
+        Q.name.test(
+            lambda x: name.lower() in x.lower()
+        )
     )
 
-    if not exists:
+    return result
+
+
+
+def add_user(uid):
+
+    Q = Query()
+
+    if not users.search(Q.id == uid):
 
         users.insert({
-            "id": user_id
+            "id":uid
         })
 
 
 
-def user_count():
+def users_count():
 
     return len(users.all())
 
 
 
-def song_count():
+def songs_count():
 
     return len(songs.all())
