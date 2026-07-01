@@ -6,19 +6,71 @@ from telegram import (
 )
 
 from telegram.ext import *
-from tinydb import TinyDB
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, ADMIN_ID
 
-
-db = TinyDB("db.json")
+import database
 
 
 
-# ذخیره آهنگ کانال
+app = Application.builder().token(BOT_TOKEN).build()
+
+
+
+# ذخیره کاربر
+async def save_user(update: Update):
+
+    if update.effective_user:
+
+        database.add_user(
+            update.effective_user.id
+        )
+
+
+
+# شروع ربات
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await save_user(update)
+
+
+    buttons = [
+
+        ["🎵 آخرین موزیک ها"],
+
+        ["🔎 جستجو"],
+
+        ["📊 آمار"]
+
+    ]
+
+
+    if update.effective_user.id == ADMIN_ID:
+
+        buttons.append(
+            ["👑 پنل ادمین"]
+        )
+
+
+
+    await update.message.reply_text(
+
+        "سلام 👋\nبه ربات موزیک خوش آمدید",
+
+        reply_markup=ReplyKeyboardMarkup(
+
+            buttons,
+
+            resize_keyboard=True
+
+        )
+
+    )# دریافت آهنگ از کانال
+
 async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = update.channel_post
+
 
     if not msg:
         return
@@ -26,23 +78,31 @@ async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if msg.audio or msg.document:
 
-        number = len(db.all()) + 1
+
+        song_id = database.song_count() + 1
 
 
         if msg.audio:
+
             file_id = msg.audio.file_id
             name = msg.audio.file_name
 
+
         else:
+
             file_id = msg.document.file_id
             name = msg.document.file_name
 
 
 
-        db.insert({
-            "id": number,
+        database.add_song({
+
+            "id": song_id,
+
             "name": name,
+
             "file_id": file_id
+
         })
 
 
@@ -51,37 +111,19 @@ async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-# شروع
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    keyboard = [
-        ["🎵 آخرین موزیک ها"],
-        ["🔎 جستجو"]
-    ]
+# نمایش آخرین آهنگ‌ها
 
-
-    await update.message.reply_text(
-        "سلام 👋\nآهنگتو پیدا کن",
-        reply_markup=ReplyKeyboardMarkup(
-            keyboard,
-            resize_keyboard=True
-        )
-    )
-
-
-
-
-
-# آخرین آهنگ ها
 async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    songs = db.all()
+
+    songs = database.get_songs()
 
 
     if not songs:
 
         await update.message.reply_text(
-            "هیچ آهنگی نداریم ❌"
+            "هنوز آهنگی ثبت نشده ❌"
         )
 
         return
@@ -93,20 +135,25 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for song in songs[-10:]:
 
+
         buttons.append([
 
             InlineKeyboardButton(
-                f"🎵 {song['name']}",
+
+                song["name"],
+
                 callback_data=str(song["id"])
+
             )
 
         ])
 
 
 
+
     await update.message.reply_text(
 
-        "آخرین موزیک‌ها:",
+        "🎵 آخرین موزیک ها:",
 
         reply_markup=InlineKeyboardMarkup(buttons)
 
@@ -117,7 +164,9 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ارسال آهنگ با دکمه
+
 async def send_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
 
     query = update.callback_query
 
@@ -125,142 +174,20 @@ async def send_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-    song_id = int(query.data)
+    song = database.find_song(
 
-
-
-    for song in db.all():
-
-
-        if song["id"] == song_id:
-
-
-            await query.message.reply_audio(
-
-                audio=song["file_id"],
-
-                caption=song["name"]
-
-            )
-
-
-            return
-
-
-
-
-
-# سرچ با کد
-async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    text = update.message.text.strip()
-
-
-
-    for song in db.all():
-
-
-        if str(song["id"]) == text:
-
-
-            await update.message.reply_audio(
-
-                audio=song["file_id"],
-
-                caption=song["name"]
-
-            )
-
-            return
-
-
-
-
-    await update.message.reply_text(
-        "❌ پیدا نشد"
-    )
-
-
-
-
-
-
-app = Application.builder().token(BOT_TOKEN).build()
-
-
-
-# start
-app.add_handler(
-    CommandHandler(
-        "start",
-        start
-    )
-)
-
-
-
-# کانال
-app.add_handler(
-
-    MessageHandler(
-
-        filters.UpdateType.CHANNEL_POST,
-
-        channel_music
+        int(query.data)
 
     )
 
-)
+
+    if song:
 
 
+        await query.message.reply_audio(
 
-# دکمه آخرین موزیک
+            song["file_id"],
 
-app.add_handler(
+            caption=song["name"]
 
-    MessageHandler(
-
-        filters.Regex("^🎵 آخرین موزیک ها$"),
-
-        latest
-
-    )
-
-)
-
-
-
-# کلیک روی آهنگ
-
-app.add_handler(
-
-    CallbackQueryHandler(
-
-        send_song
-
-    )
-
-)
-
-
-
-# پیام معمولی
-
-app.add_handler(
-
-    MessageHandler(
-
-        filters.TEXT,
-
-        search
-
-    )
-
-)
-
-
-
-print("BOT RUNNING")
-
-
-app.run_polling()
+        )
