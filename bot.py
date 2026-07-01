@@ -8,39 +8,38 @@ from config import BOT_TOKEN, CHANNEL_ID
 db = TinyDB("db.json")
 
 
-# گرفتن آهنگ از کانال
+# ذخیره آهنگ کانال
 async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if update.effective_chat.id != CHANNEL_ID:
-        return
+    msg = update.channel_post
 
-    msg = update.effective_message
+    if not msg:
+        return
 
     if msg.audio or msg.document:
 
-        count = len(db.all()) + 1
+        number = len(db.all()) + 1
 
-        name = (
-            msg.audio.file_name
-            if msg.audio
-            else msg.document.file_name
-        )
+        if msg.audio:
+            file_id = msg.audio.file_id
+            name = msg.audio.file_name
 
-        file_id = (
-            msg.audio.file_id
-            if msg.audio
-            else msg.document.file_id
-        )
+        else:
+            file_id = msg.document.file_id
+            name = msg.document.file_name
+
 
         db.insert({
-            "id": count,
+            "id": number,
             "name": name,
             "file_id": file_id
         })
 
+        print("Saved:", name)
 
 
-# استارت
+
+# start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
@@ -48,7 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        "سلام 👋\nکد یا اسم آهنگ رو بفرست",
+        "سلام 👋",
         reply_markup=ReplyKeyboardMarkup(
             keyboard,
             resize_keyboard=True
@@ -57,14 +56,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-# آخرین موزیک ها
+# آخرین آهنگ ها
 async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     songs = db.all()
 
     if not songs:
         await update.message.reply_text(
-            "هنوز آهنگی ذخیره نشده 🎵"
+            "هیچ آهنگی ذخیره نشده ❌"
         )
         return
 
@@ -72,54 +71,34 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "🎵 آخرین موزیک ها:\n\n"
 
 
-    for song in songs[-10:]:
-
-        text += f"🔹 {song['id']} - {song['name']}\n"
+    for s in songs[-10:]:
+        text += f"{s['id']} - {s['name']}\n"
 
 
     await update.message.reply_text(text)
 
 
 
-# جستجو و ارسال آهنگ
+# ارسال با کد
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    text = update.message.text.strip()
+    text = update.message.text
 
-    result = None
+    for song in db.all():
 
+        if str(song["id"]) == text:
 
-    if text.isdigit():
+            await update.message.reply_audio(
+                song["file_id"],
+                caption=song["name"]
+            )
 
-        for song in db.all():
-
-            if song["id"] == int(text):
-                result = song
-                break
-
-
-    else:
-
-        for song in db.all():
-
-            if text.lower() in song["name"].lower():
-                result = song
-                break
+            return
 
 
-
-    if result:
-
-        await update.message.reply_audio(
-            audio=result["file_id"],
-            caption=result["name"]
-        )
-
-    else:
-
-        await update.message.reply_text(
-            "❌ آهنگ پیدا نشد"
-        )
+    await update.message.reply_text(
+        "پیدا نشد ❌"
+    )
 
 
 
@@ -127,26 +106,17 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(BOT_TOKEN).build()
 
 
+app.add_handler(CommandHandler("start", start))
+
 
 app.add_handler(
-    CommandHandler(
-        "start",
-        start
+    MessageHandler(
+        filters.UpdateType.CHANNEL_POST,
+        channel_music
     )
 )
 
 
-# آهنگ های کانال
-app.add_handler(
-    MessageHandler(
-        filters.ALL,
-        channel_music
-    )
-        )
-
-
-
-# دکمه آخرین موزیک ها
 app.add_handler(
     MessageHandler(
         filters.Regex("^🎵 آخرین موزیک ها$"),
@@ -155,8 +125,6 @@ app.add_handler(
 )
 
 
-
-# سرچ
 app.add_handler(
     MessageHandler(
         filters.TEXT,
@@ -165,8 +133,6 @@ app.add_handler(
 )
 
 
-
-print("Bot Started")
+print("RUNNING")
 
 app.run_polling()
-
