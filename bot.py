@@ -1,4 +1,4 @@
-from telegram import (
+نهfrom telegram import (
     Update,
     ReplyKeyboardMarkup,
     InlineKeyboardButton,
@@ -191,3 +191,187 @@ async def send_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption=song["name"]
 
         )
+        # آمار
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+
+        f"📊 آمار ربات\n\n"
+        f"🎵 تعداد آهنگ‌ها: {database.song_count()}\n"
+        f"👤 کاربران: {database.user_count()}"
+
+    )
+
+
+
+
+
+# پنل ادمین
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+    if update.effective_user.id != ADMIN_ID:
+
+        return
+
+
+
+    await update.message.reply_text(
+
+        "👑 پنل ادمین\n\n"
+        "🎵 آهنگ‌ها: " + str(database.song_count()) +
+        "\n👤 کاربران: " + str(database.user_count())
+
+    )
+
+
+
+
+
+# سرچ با کد
+
+async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+    text = update.message.text.strip()
+
+
+    if text.isdigit():
+
+
+        song = database.find_song(
+
+            int(text)
+
+        )
+
+
+        if song:
+
+
+            await update.message.reply_audio(
+
+                song["file_id"],
+
+                caption=song["name"]
+
+            )
+
+            return
+
+
+
+    await update.message.reply_text(
+
+        "❌ پیدا نشد"
+
+    )
+
+
+
+
+
+# اتصال دستورات
+
+
+app.add_handler(
+
+    CommandHandler(
+
+        "start",
+
+        start
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    MessageHandler(
+
+        filters.UpdateType.CHANNEL_POST,
+
+        channel_music
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    MessageHandler(
+
+        filters.Regex("^🎵 آخرین موزیک ها$"),
+
+        latest
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    MessageHandler(
+
+        filters.Regex("^📊 آمار$"),
+
+        stats
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    MessageHandler(
+
+        filters.Regex("^👑 پنل ادمین$"),
+
+        admin_panel
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    CallbackQueryHandler(
+
+        send_song
+
+    )
+
+)
+
+
+
+app.add_handler(
+
+    MessageHandler(
+
+        filters.TEXT,
+
+        search
+
+    )
+
+)
+
+
+
+print("BOT STARTED")
+
+app.run_polling()
