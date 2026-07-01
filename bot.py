@@ -14,7 +14,7 @@ async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != CHANNEL_ID:
         return
 
-    msg = update.message
+    msg = update.channel_post
 
     if msg.audio or msg.document:
 
@@ -139,7 +139,7 @@ app.add_handler(
 # آهنگ های کانال
 app.add_handler(
     MessageHandler(
-        filters.ChatType.CHANNEL,
+        filters.UpdateType.CHANNEL_POST,
         channel_music
     )
 )
@@ -169,3 +169,4 @@ app.add_handler(
 print("Bot Started")
 
 app.run_polling()
+
