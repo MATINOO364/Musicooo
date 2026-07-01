@@ -1,4 +1,4 @@
-نهfrom telegram import (
+from telegram import (
     Update,
     ReplyKeyboardMarkup,
     InlineKeyboardButton,
@@ -66,47 +66,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     )# دریافت آهنگ از کانال
-
-async def channel_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def channel_music(update, context):
 
     msg = update.channel_post
 
 
-    if not msg:
-        return
+    if msg.audio:
 
 
-    if msg.audio or msg.document:
-
-
-        song_id = database.song_count() + 1
-
-
-        if msg.audio:
-
-            file_id = msg.audio.file_id
-            name = msg.audio.file_name
-
-
-        else:
-
-            file_id = msg.document.file_id
-            name = msg.document.file_name
-
+        code = database.get_next_id()
 
 
         database.add_song({
 
-            "id": song_id,
+            "code":code,
 
-            "name": name,
+            "name":msg.audio.file_name,
 
-            "file_id": file_id
+            "file_id":msg.audio.file_id
 
         })
 
 
-        print("Saved:", name)
+        await context.bot.send_message(
+
+            chat_id=CHANNEL_ID,
+
+            text=f"🎵 کد آهنگ: {code}",
+
+            reply_to_message_id=msg.message_id
+
+        )
+
+
+        print("Saved", code)
 
 
 
